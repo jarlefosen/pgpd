@@ -11,10 +11,10 @@ import (
 
 var (
 	app           = flag.NewFlagSet("pgpd", flag.ExitOnError)
-	readFilename  = app.String("in", "-", "Input file (defaults to stdin)")
-	writeFilename = app.String("out", "-", "Output file (defaults to stdout)")
+	readFilename  = app.String("in", "-", "Input file")
+	writeFilename = app.String("out", "-", "Output file")
 	pkeyFilename  = app.String("pkey", "", "Private key file")
-	passphrase    = app.String("pass", "", "Private key decryption passphrase")
+	passphrase    = app.String("pass", "", "Passphrase to decrypt private key")
 )
 
 func main() {
