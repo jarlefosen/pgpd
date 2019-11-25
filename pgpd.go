@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -18,61 +17,50 @@ var (
 	passphrase    = app.String("pass", "", "Private key decryption passphrase")
 )
 
-func openFileOrStdin(filename string) (io.ReadCloser, error) {
-	if filename == "-" {
-		return os.Stdin, nil
-	}
-	return os.Open(filename)
-}
-
-func createFileOrStdout(filename string) (io.WriteCloser, error) {
-	if filename == "" {
-		return nil, fmt.Errorf("cannot create file with no name")
-	}
-	if filename == "-" {
-		return os.Stdout, nil
-	}
-	return os.Create(filename)
-}
-
 func main() {
 	if err := app.Parse(os.Args[1:]); err != nil {
-		panic(err)
+		log.Fatalf("Failed to parse arguments: %s", err)
 	}
 
-	log.Printf("Using private key: %s", *pkeyFilename)
-	ring, err := DecodePrivateKeyFileRing(*pkeyFilename, []byte(*passphrase))
+	if *pkeyFilename == "" {
+		log.Fatal("Missing private key")
+	}
+	ring, err := decodePrivateKeyFileRing(*pkeyFilename, []byte(*passphrase))
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to read private key: %s", err)
 	}
 
-	log.Printf("Reading file: %s", *readFilename)
+	if *readFilename == "" {
+		log.Fatal("Missing input filename")
+	}
 	in, err := openFileOrStdin(*readFilename)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to open input file: %s", err)
 	}
 	defer in.Close()
 
-	log.Printf("Writitng to file: %s", *writeFilename)
+	if *writeFilename == "" {
+		log.Fatal("Missing output filename")
+	}
 	out, err := createFileOrStdout(*writeFilename)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to open output file: %s", err)
 	}
 	defer out.Close()
 
 	md, err := openpgp.ReadMessage(in, ring, nil, nil)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to decode input file: %s", err)
 	}
 
 	if n, err := io.Copy(out, md.UnverifiedBody); err != nil {
-		panic(err)
+		log.Fatalf("Error copying decoded input to output: %s", err)
 	} else {
 		log.Printf("Wrote %d bytes to output", n)
 	}
 }
 
-func DecodePrivateKeyFileRing(filename string, passphrase []byte) (openpgp.EntityList, error) {
+func decodePrivateKeyFileRing(filename string, passphrase []byte) (openpgp.EntityList, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -93,4 +81,18 @@ func DecodePrivateKeyFileRing(filename string, passphrase []byte) (openpgp.Entit
 	}
 
 	return kr, nil
+}
+
+func openFileOrStdin(filename string) (io.ReadCloser, error) {
+	if filename == "-" {
+		return os.Stdin, nil
+	}
+	return os.Open(filename)
+}
+
+func createFileOrStdout(filename string) (io.WriteCloser, error) {
+	if filename == "-" {
+		return os.Stdout, nil
+	}
+	return os.Create(filename)
 }
